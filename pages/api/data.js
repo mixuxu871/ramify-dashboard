@@ -15,20 +15,44 @@ export default async function handler(req, res) {
       .replace(/\//g, '_')
       .replace(/=/g, '')
 
-    const downloadUrl = `https://api.onedrive.com/v1.0/shares/u!${encoded}/root/content`
+    const apiUrl = `https://api.onedrive.com/v1.0/shares/u!${encoded}/root/content`
 
-    const response = await fetch(downloadUrl, {
+    console.log('Fetching OneDrive URL:', shareUrl.slice(0, 40) + '...')
+    console.log('API URL:', apiUrl)
+
+    const response = await fetch(apiUrl, {
       redirect: 'follow',
-      headers: { 'User-Agent': 'RamifyDashboard/1.0' },
+      headers: {
+        'User-Agent': 'RamifyDashboard/1.0',
+        'Accept': '*/*',
+      },
       signal: AbortSignal.timeout(30000), // 30s timeout
     })
 
+    console.log('Response status:', response.status, response.statusText)
+    console.log('Response content-type:', response.headers.get('content-type'))
+
     if (!response.ok) {
-      throw new Error(`OneDrive fetch failed: ${response.status} ${response.statusText}`)
+      const body = await response.text().catch(() => '')
+      console.error('OneDrive error body:', body.slice(0, 500))
+      throw new Error(`OneDrive fetch failed: ${response.status} ${response.statusText}. Body: ${body.slice(0, 200)}`)
+    }
+
+    const contentType = response.headers.get('content-type') || ''
+    if (contentType.includes('text/html') || contentType.includes('application/json')) {
+      const body = await response.text()
+      console.error('Got HTML/JSON instead of file:', body.slice(0, 500))
+      throw new Error(`OneDrive a renvoyé du HTML/JSON au lieu du fichier (${contentType}). Verifiez que le lien est un lien de telechargement direct.`)
     }
 
     const arrayBuffer = await response.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
+
+    console.log('Downloaded file size:', buffer.length, 'bytes')
+
+    if (buffer.length < 1000) {
+      throw new Error(`Fichier trop petit (${buffer.length} octets) - telechargement probablement echoue`)
+    }
 
     const data = parseDatabook(buffer)
 

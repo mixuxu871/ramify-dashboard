@@ -5,7 +5,11 @@ import {
   CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine,
 } from 'recharts'
 
-const fetcher = url => fetch(url).then(r => r.json())
+const fetcher = url => fetch(url).then(async r => {
+  const json = await r.json()
+  if (!r.ok) throw new Error(json.error || `Erreur HTTP ${r.status}`)
+  return json
+})
 
 // ── Formatters ──────────────────────────────────────────────────────────────
 const fmtK = (v) => {
@@ -148,15 +152,15 @@ export default function Dashboard() {
   })
 
   // ── Chart data ──────────────────────────────────────────────────────────
-  const plChartData = data
+  const plChartData = data?.years
     ? data.years.slice(1).map((y, i) => ({
         year: y,
-        revenue: data.pl.find(m => m.key === 'revenue')?.values[i + 1] ?? null,
-        ebitda:  data.pl.find(m => m.key === 'ebitda')?.values[i + 1] ?? null,
+        revenue: data.pl?.find(m => m.key === 'revenue')?.values[i + 1] ?? null,
+        ebitda:  data.pl?.find(m => m.key === 'ebitda')?.values[i + 1] ?? null,
       }))
     : []
 
-  const tresoChartData = data
+  const tresoChartData = data?.treso
     ? data.treso
         .filter(t => t.cash !== null)
         .slice(-30) // last 30 months
@@ -201,9 +205,16 @@ export default function Dashboard() {
 
         {/* ── Error state ── */}
         {error && (
-          <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 text-rose-700 text-sm">
-            <strong>Erreur de chargement :</strong> {error.message || 'Impossible de lire le fichier OneDrive.'}
-            <br /><span className="text-rose-400 text-xs">Vérifiez que ONEDRIVE_SHARE_URL est bien configuré dans Vercel.</span>
+          <div className="bg-rose-50 border border-rose-200 rounded-xl p-5 text-rose-700 text-sm space-y-2">
+            <p className="font-semibold text-base">⚠️ Impossible de charger les données</p>
+            <p className="font-mono bg-rose-100 rounded px-3 py-2 text-rose-800 text-xs break-all">
+              {error.message || 'Erreur inconnue'}
+            </p>
+            <ul className="text-rose-500 text-xs list-disc list-inside space-y-1">
+              <li>Vérifiez que <strong>ONEDRIVE_SHARE_URL</strong> est configuré dans Vercel → Settings → Environment Variables</li>
+              <li>Le lien OneDrive doit être un lien de partage public (mode "Toute personne avec le lien")</li>
+              <li>Après avoir modifié les variables, redéployez le projet (Deployments → ⋯ → Redeploy)</li>
+            </ul>
           </div>
         )}
 
