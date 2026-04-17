@@ -210,11 +210,9 @@ export default function Dashboard() {
             <p className="font-mono bg-rose-100 rounded px-3 py-2 text-rose-800 text-xs break-all">
               {error.message || 'Erreur inconnue'}
             </p>
-            <ul className="text-rose-500 text-xs list-disc list-inside space-y-1">
-              <li>Vérifiez que <strong>ONEDRIVE_SHARE_URL</strong> est configuré dans Vercel → Settings → Environment Variables</li>
-              <li>Le lien OneDrive doit être un lien de partage public (mode "Toute personne avec le lien")</li>
-              <li>Après avoir modifié les variables, redéployez le projet (Deployments → ⋯ → Redeploy)</li>
-            </ul>
+            <p className="text-rose-500 text-xs">
+              → <a href="/upload" className="underline font-medium">Mettre à jour le databook</a> si le fichier n'a pas encore été uploadé.
+            </p>
           </div>
         )}
 

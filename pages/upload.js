@@ -26,14 +26,45 @@ export default function Upload() {
         reader.readAsDataURL(file)
       })
 
-      const res = await fetch('/api/upload', {
+      // Check password via our API first
+      const checkRes = await fetch('/api/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password, fileBase64: base64 }),
+        body: JSON.stringify({ password, checkOnly: true }),
+      })
+      const checkJson = await checkRes.json()
+      if (!checkRes.ok) throw new Error(checkJson.error)
+
+      // Upload directly to GitHub API from browser (bypasses Vercel 4.5MB limit)
+      const { token, repo, path } = checkJson
+
+      // Get current SHA
+      let sha
+      const getRes = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
+      })
+      if (getRes.ok) {
+        const existing = await getRes.json()
+        sha = existing.sha
+      }
+
+      // Push file
+      const pushRes = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: `Update databook ${new Date().toLocaleDateString('fr-FR')}`,
+          content: base64,
+          ...(sha ? { sha } : {}),
+        }),
       })
 
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error)
+      const json = await pushRes.json()
+      if (!pushRes.ok) throw new Error(json.message || 'Erreur GitHub')
 
       setStatus('success')
       setMessage('✅ Databook mis à jour ! Le dashboard se rafraîchit dans 1-2 minutes.')
